@@ -1,18 +1,19 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
 import { 
   Box, 
   Typography, 
   TextField, 
   Button, 
-  CircularProgress,
-  Alert
+  CircularProgress, 
+  Alert 
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-const Register = () => {
+const EditUser = () => {
   const navigate = useNavigate();
+  const { userId } = useParams();  // Capturar el ID del usuario desde la URL
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
@@ -22,25 +23,44 @@ const Register = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);  // Nuevo estado para el mensaje de éxito
+
+  useEffect(() => {
+    // Cargar los detalles del usuario
+    const fetchUserData = async () => {
+      setLoading(true);
+      try {
+        const response = await api.get(`/users/${userId}`);
+        setFormData({
+          nombre: response.data.nombre,
+          email: response.data.email,
+          password: '',
+          confirmPassword: ''
+        });
+      } catch (err) {
+        setError(err.response?.data?.error || err.message || 'Error al cargar los datos');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [userId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error when typing
     setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
   const validate = () => {
     const newErrors = {};
-    
+
     if (!formData.nombre.trim()) newErrors.nombre = 'Nombre es requerido';
     if (!formData.email.trim()) newErrors.email = 'Email es requerido';
     else if (!/^\S+@\S+\.\S+$/.test(formData.email)) newErrors.email = 'Email no válido';
-    if (!formData.password) newErrors.password = 'Contraseña es requerida';
-    else if (formData.password.length < 6) newErrors.password = 'Mínimo 6 caracteres';
+    if (formData.password && formData.password.length < 6) newErrors.password = 'Mínimo 6 caracteres';
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Las contraseñas no coinciden';
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -48,23 +68,20 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-    
+
     setLoading(true);
     try {
-      // Registrar usuario
-      await api.post('/users/register', {
+      // Enviar la solicitud PUT para actualizar el usuario
+      await api.put(`/users/${userId}`, {
         nombre: formData.nombre,
         email: formData.email,
         password: formData.password
       });
       
-      // Mostrar mensaje de éxito
-      setSuccess(true);
-      
-      // Redirigir al dashboard después de registrarse
+      // Redirigir al dashboard después de actualizar
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Error en el registro');
+      setError(err.response?.data?.error || err.message || 'Error al actualizar el usuario');
     } finally {
       setLoading(false);
     }
@@ -81,18 +98,12 @@ const Register = () => {
       </Button>
 
       <Typography variant="h4" component="h1" gutterBottom>
-        Registro de Usuario
+        Editar Usuario
       </Typography>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </Alert>
-      )}
-
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          ¡Usuario creado con éxito!
         </Alert>
       )}
 
@@ -130,7 +141,6 @@ const Register = () => {
           helperText={errors.password}
           fullWidth
           margin="normal"
-          required
         />
         <TextField
           label="Confirmar Contraseña"
@@ -142,7 +152,6 @@ const Register = () => {
           helperText={errors.confirmPassword}
           fullWidth
           margin="normal"
-          required
         />
         <Box mt={2}>
           <Button 
@@ -152,7 +161,7 @@ const Register = () => {
             disabled={loading}
             startIcon={loading ? <CircularProgress size={20} /> : null}
           >
-            {loading ? 'Registrando...' : 'Registrarse'}
+            {loading ? 'Actualizando...' : 'Actualizar'}
           </Button>
         </Box>
       </Box>
@@ -160,4 +169,4 @@ const Register = () => {
   );
 };
 
-export default Register;
+export default EditUser;
